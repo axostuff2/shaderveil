@@ -11,6 +11,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Find the Gradle project even if the zip was unpacked into a subfolder.
+      - name: Locate project
+        run: |
+          f=$(find . -maxdepth 3 -name settings.gradle.kts -not -path './.git/*' | head -n1)
+          [ -n "$f" ] || { echo "settings.gradle.kts not found"; ls -R | head -50; exit 1; }
+          echo "PROJECT_DIR=$(dirname "$f")" >> "$GITHUB_ENV"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -25,6 +32,7 @@ jobs:
           gradle-version: 8.9
 
       - name: Download depth model (MiDaS small, MIT licence)
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           mkdir -p app/src/main/assets/models
           curl -fL --retry 3 -o app/src/main/assets/models/midas_small.tflite \
@@ -32,9 +40,10 @@ jobs:
             || echo "model download failed; the app will run without neural depth"
 
       - name: Build debug APK
+        working-directory: ${{ env.PROJECT_DIR }}
         run: gradle assembleDebug --no-daemon --stacktrace
 
       - uses: actions/upload-artifact@v4
         with:
           name: ShaderVeil-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
