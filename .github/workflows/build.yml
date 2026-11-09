@@ -11,10 +11,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Find the Gradle project even if the zip was unpacked into a subfolder.
-      - name: Locate project
+      # The repo may hold the project as a zip (uploaded from a phone): unpack it, then find the Gradle project.
+      - name: Unpack zip and locate project
         run: |
-          f=$(find . -maxdepth 3 -name settings.gradle.kts -not -path './.git/*' | head -n1)
+          for z in $(find . -maxdepth 2 -name '*.zip' -not -path './.git/*'); do
+            echo "unpacking $z"; mkdir -p _src; unzip -oq "$z" -d _src
+          done
+          f=$(find . -maxdepth 4 -name settings.gradle.kts -not -path './.git/*' | head -n1)
           [ -n "$f" ] || { echo "settings.gradle.kts not found"; ls -R | head -50; exit 1; }
           echo "PROJECT_DIR=$(dirname "$f")" >> "$GITHUB_ENV"
 
